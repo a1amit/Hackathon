@@ -80,13 +80,16 @@ def get_user_parameters():
                 continue
             tcp_connections_str = input("Enter the number of TCP connections: ")
             tcp_connections = int(tcp_connections_str)
-            if tcp_connections <= 0:
+            if tcp_connections < 0:
                 print(Fore.RED + "Number of TCP connections must be a positive integer." + Style.RESET_ALL)
                 continue
             udp_connections_str = input("Enter the number of UDP connections: ")
             udp_connections = int(udp_connections_str)
-            if udp_connections <= 0:
+            if udp_connections < 0:
                 print(Fore.RED + "Number of UDP connections must be a positive integer." + Style.RESET_ALL)
+                continue
+            if udp_connections == 0 and tcp_connections == 0:
+                print(Fore.RED + "At least one TCP or UDP connection is required." + Style.RESET_ALL)
                 continue
             return file_size, tcp_connections, udp_connections
         except ValueError:
