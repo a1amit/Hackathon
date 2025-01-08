@@ -67,6 +67,9 @@ def listen_for_offers(stop_event, offer_queue):
                     server_ip = addr[0]
                     offer_queue.put((server_ip, udp_port, tcp_port))
                     print(Fore.CYAN + f"Received offer from {server_ip}" + Style.RESET_ALL)
+                    logger.info(f"Received offer from {server_ip}:{tcp_port} via UDP port {udp_port}.")
+                elif offer and is_transfer_active:
+                    logger.info(f"Ignored offer from {server_ip} as a transfer is already active.")
             except socket.timeout:
                 continue
             except Exception as e:
@@ -135,6 +138,7 @@ def tcp_transfer(server_ip, tcp_port, file_size, transfer_id, results):
     """
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            logger.info(f"Initiating TCP transfer #{transfer_id} to {server_ip}:{tcp_port} for {file_size} bytes.")
             start_time = time.time()
             s.connect((server_ip, tcp_port))
             # Send the file size followed by a newline
@@ -144,14 +148,19 @@ def tcp_transfer(server_ip, tcp_port, file_size, transfer_id, results):
             while bytes_received < file_size:
                 data = s.recv(BUFFER_SIZE)
                 if not data:
+                    logger.warning(f"TCP transfer #{transfer_id}: Connection closed prematurely.")
                     break
                 bytes_received += len(data)
             end_time = time.time()
             total_time = end_time - start_time
             speed = (bytes_received * 8) / total_time if total_time > 0 else 0  # bits per second
+            logger.info(
+                f"TCP transfer #{transfer_id} completed: {bytes_received} bytes in {total_time:.2f} seconds at {speed:.2f} bps.")
             results.append(
-                f"{Fore.GREEN}TCP transfer #{transfer_id} finished, total time: {total_time:.2f} seconds, total speed: {speed:.2f} bits/second{Style.RESET_ALL}")
+                f"{Fore.GREEN}TCP transfer #{transfer_id} finished, total time: {total_time:.2f} seconds, total speed: {speed:.2f} bits/second{Style.RESET_ALL}"
+            )
     except Exception as e:
+        logger.error(f"TCP transfer #{transfer_id} failed: {e}")
         results.append(f"{Fore.RED}TCP transfer #{transfer_id} failed: {e}{Style.RESET_ALL}")
 
 
@@ -172,6 +181,7 @@ def udp_transfer(server_ip, udp_port, file_size, transfer_id, results):
             # Send request message
             request = create_request_message(file_size)
             s.sendto(request, (server_ip, udp_port))
+            logger.info(f"Initiating UDP transfer #{transfer_id} to {server_ip}:{udp_port} for {file_size} bytes.")
             start_time = time.time()
             bytes_received = 0
             segments_received = set()
@@ -181,13 +191,23 @@ def udp_transfer(server_ip, udp_port, file_size, transfer_id, results):
                     data, addr = s.recvfrom(BUFFER_SIZE)
                     parsed = parse_payload_message(data)
                     if not parsed:
+                        logger.warning(f"UDP transfer #{transfer_id}: Received malformed payload from {addr}.")
                         continue
                     seg_total, seg_current, payload = parsed
                     if total_segments is None:
                         total_segments = seg_total
-                    segments_received.add(seg_current)
-                    bytes_received += len(payload)
+                        logger.info(f"UDP transfer #{transfer_id}: Total segments to receive: {total_segments}.")
+                    # Add only unique segments
+                    if seg_current not in segments_received:
+                        segments_received.add(seg_current)
+                        bytes_received += len(payload)
+                        logger.debug(f"UDP transfer #{transfer_id}: Received segment {seg_current}/{seg_total}.")
+                    # Optional: Stop if all segments are received
+                    if total_segments and len(segments_received) >= total_segments:
+                        logger.info(f"UDP transfer #{transfer_id}: All segments received.")
+                        break
                 except socket.timeout:
+                    logger.info(f"UDP transfer #{transfer_id}: Transfer timed out.")
                     break
             end_time = time.time()
             total_time = end_time - start_time
@@ -197,9 +217,16 @@ def udp_transfer(server_ip, udp_port, file_size, transfer_id, results):
                 loss_percentage = (packets_lost / total_segments) * 100
             else:
                 loss_percentage = 100.0
+            logger.info(
+                f"UDP transfer #{transfer_id} completed: {bytes_received} bytes in {total_time:.2f} seconds at {speed:.2f} bps with {100 - loss_percentage:.2f}% packets received.")
             results.append(
-                f"{Fore.YELLOW}UDP transfer #{transfer_id} finished, total time: {total_time:.2f} seconds, total speed: {speed:.2f} bits/second, percentage of packets received successfully: {100 - loss_percentage:.2f}%{Style.RESET_ALL}")
+                f"{Fore.YELLOW}UDP transfer #{transfer_id} finished, "
+                f"total time: {total_time:.2f} seconds, "
+                f"total speed: {speed:.2f} bits/second, "
+                f"percentage of packets received successfully: {100 - loss_percentage:.2f}%{Style.RESET_ALL}"
+            )
     except Exception as e:
+        logger.error(f"UDP transfer #{transfer_id} failed: {e}")
         results.append(f"{Fore.RED}UDP transfer #{transfer_id} failed: {e}{Style.RESET_ALL}")
 
 
