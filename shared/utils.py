@@ -3,6 +3,7 @@
 import socket
 import logging
 
+
 def get_local_ip():
     """
     Retrieves the local IP address of the machine.
@@ -19,7 +20,8 @@ def get_local_ip():
             IP = '127.0.0.1'
     return IP
 
-def setup_logger(name, log_file, level=logging.INFO):
+
+def setup_logger(name, log_file, level=logging.DEBUG):
     """
     Sets up a logger with the specified name and log file.
 
@@ -43,4 +45,3 @@ def setup_logger(name, log_file, level=logging.INFO):
         logger.addHandler(handler)
 
     return logger
-

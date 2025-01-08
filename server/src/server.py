@@ -43,7 +43,7 @@ def handle_tcp_client(conn, addr, file_size):
         file_size (int): The number of bytes to send.
     """
     try:
-        logger.info(f"[TCP] Handling client {addr}")
+        logger.info(f"[TCP] Handling client {addr} for {file_size} bytes.")
         bytes_sent = 0
         buffer_size = 4096  # 4KB per send
         dummy_data = b'a' * buffer_size  # Dummy data to send
@@ -60,7 +60,7 @@ def handle_tcp_client(conn, addr, file_size):
         total_time = end_time - start_time
         speed = (bytes_sent * 8) / total_time  # bits per second
 
-        logger.info(f"[TCP] Sent {bytes_sent} bytes to {addr} in {total_time:.2f} seconds at {speed:.2f} bps")
+        logger.info(f"[TCP] Sent {bytes_sent} bytes to {addr} in {total_time:.2f} seconds at {speed:.2f} bps.")
     except Exception as e:
         logger.error(f"[TCP] Error with client {addr}: {e}")
     finally:
@@ -78,14 +78,14 @@ def handle_udp_request(data, addr, udp_socket):
         udp_socket (socket.socket): The UDP socket to send data through.
     """
     try:
-        logger.info(f"[UDP] Received data from {addr}")
+        logger.info(f"[UDP] Received data from {addr}.")
         # Parse request message
         file_size = parse_request_message(data)
         if file_size is None:
-            logger.warning(f"[UDP] Invalid request from {addr}")
+            logger.warning(f"[UDP] Invalid request from {addr}.")
             return
 
-        logger.info(f"[UDP] Handling UDP request from {addr} for {file_size} bytes")
+        logger.info(f"[UDP] Handling UDP request from {addr} for {file_size} bytes.")
 
         # Calculate number of segments
         total_segments = (file_size + SEGMENT_SIZE - 1) // SEGMENT_SIZE
@@ -97,9 +97,10 @@ def handle_udp_request(data, addr, udp_socket):
         for segment in range(1, total_segments + 1):
             payload = create_payload_message(total_segments, segment, dummy_payload)
             udp_socket.sendto(payload, addr)
+            logger.debug(f"[UDP] Sent segment {segment}/{total_segments} to {addr}.")
             time.sleep(0.001)  # Slight delay to prevent network congestion
 
-        logger.info(f"[UDP] Sent {total_segments} segments to {addr}")
+        logger.info(f"[UDP] Sent {total_segments} segments to {addr}.")
     except Exception as e:
         logger.error(f"[UDP] Error handling UDP request from {addr}: {e}")
 
@@ -147,14 +148,16 @@ def udp_server(udp_port):
     """
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         s.bind(('', udp_port))
-        logger.info(f"[UDP] UDP server listening on port {udp_port}")
+        logger.info(f"[UDP] UDP server listening on port {udp_port}.")
         print(Fore.MAGENTA + f"[UDP] UDP server listening on port {udp_port}" + Style.RESET_ALL)
         while True:
             try:
                 data, addr = s.recvfrom(BUFFER_SIZE)
+                logger.info(f"[UDP] Received request from {addr}.")
                 threading.Thread(target=handle_udp_request, args=(data, addr, s), daemon=True).start()
             except Exception as e:
                 logger.error(f"[UDP] Error receiving data: {e}")
+
 
 
 def offer_broadcaster(tcp_port, udp_port):
@@ -172,7 +175,7 @@ def offer_broadcaster(tcp_port, udp_port):
             try:
                 # Broadcast to the local network on OFFER_PORT
                 s.sendto(offer_message, ('<broadcast>', OFFER_PORT))
-                logger.info(f"[Offer] Broadcasted offer message (TCP:{tcp_port}, UDP:{udp_port})")
+                logger.info(f"[Offer] Broadcasted offer message (TCP:{tcp_port}, UDP:{udp_port}).")
                 time.sleep(OFFER_INTERVAL)
             except Exception as e:
                 logger.error(f"[Offer] Error broadcasting offer: {e}")
