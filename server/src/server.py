@@ -22,6 +22,7 @@ from shared.protocol import (
 )
 from shared.utils import get_local_ip, setup_logger
 from colorama import Fore, Style
+from concurrent.futures import ThreadPoolExecutor
 
 # Constants
 OFFER_INTERVAL = 1  # seconds between offer broadcasts
@@ -105,6 +106,10 @@ def handle_udp_request(data, addr, udp_socket):
         logger.error(f"[UDP] Error handling UDP request from {addr}: {e}")
 
 
+# Define maximum number of worker threads
+MAX_WORKERS = 50
+
+
 def tcp_server(tcp_port):
     """
     Starts the TCP server to listen for incoming connections.
@@ -115,28 +120,31 @@ def tcp_server(tcp_port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(('', tcp_port))
         s.listen()
-        logger.info(f"[TCP] TCP server listening on port {tcp_port}")
+        logger.info(f"[TCP] TCP server listening on port {tcp_port}.")
         print(Fore.BLUE + f"[TCP] TCP server listening on port {tcp_port}" + Style.RESET_ALL)
-        while True:
-            try:
-                conn, addr = s.accept()
-                # Receive file size from client
-                data = b''
-                while not data.endswith(b'\n'):
-                    packet = conn.recv(1024)
-                    if not packet:
-                        break
-                    data += packet
-                if not data:
-                    logger.warning(f"[TCP] No data received from {addr}")
-                    conn.close()
-                    continue
-                file_size_str = data.strip().decode()
-                file_size = int(file_size_str)
-                # Start a new thread to handle the client
-                threading.Thread(target=handle_tcp_client, args=(conn, addr, file_size), daemon=True).start()
-            except Exception as e:
-                logger.error(f"[TCP] Error accepting connections: {e}")
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            while True:
+                try:
+                    conn, addr = s.accept()
+                    logger.info(f"[TCP] Accepted connection from {addr}.")
+                    # Receive file size from client
+                    data = b''
+                    while not data.endswith(b'\n'):
+                        packet = conn.recv(1024)
+                        if not packet:
+                            break
+                        data += packet
+                    if not data:
+                        logger.warning(f"[TCP] No data received from {addr}. Closing connection.")
+                        conn.close()
+                        continue
+                    file_size_str = data.strip().decode()
+                    file_size = int(file_size_str)
+                    logger.info(f"[TCP] Client {addr} requested {file_size} bytes.")
+                    # Submit the handling task to the thread pool
+                    executor.submit(handle_tcp_client, conn, addr, file_size)
+                except Exception as e:
+                    logger.error(f"[TCP] Error accepting connections: {e}")
 
 
 def udp_server(udp_port):
@@ -157,7 +165,6 @@ def udp_server(udp_port):
                 threading.Thread(target=handle_udp_request, args=(data, addr, s), daemon=True).start()
             except Exception as e:
                 logger.error(f"[UDP] Error receiving data: {e}")
-
 
 
 def offer_broadcaster(tcp_port, udp_port):

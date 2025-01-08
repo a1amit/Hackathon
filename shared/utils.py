@@ -2,6 +2,7 @@
 
 import socket
 import logging
+from logging.handlers import RotatingFileHandler
 
 
 def get_local_ip():
@@ -21,7 +22,7 @@ def get_local_ip():
     return IP
 
 
-def setup_logger(name, log_file, level=logging.DEBUG):
+def setup_logger(name, log_file, level=logging.INFO, max_bytes=10 * 1024 * 1024, backup_count=5):
     """
     Sets up a logger with the specified name and log file.
 
@@ -29,13 +30,15 @@ def setup_logger(name, log_file, level=logging.DEBUG):
         name (str): The name of the logger.
         log_file (str): The file to which logs will be written.
         level (int): Logging level.
+        max_bytes (int): Maximum size in bytes before rotation.
+        backup_count (int): Number of backup files to keep.
 
     Returns:
         logging.Logger: Configured logger.
     """
     formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
 
-    handler = logging.FileHandler(log_file)
+    handler = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
     handler.setFormatter(formatter)
 
     logger = logging.getLogger(name)
