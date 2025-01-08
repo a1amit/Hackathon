@@ -6,6 +6,7 @@ import socket
 import struct
 import threading
 import time
+import queue
 
 # Add the project root directory to sys.path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -40,10 +41,16 @@ def listen_for_offers(stop_event, offer_queue):
 
     Args:
         stop_event (threading.Event): Event to signal stopping the listener.
-        offer_queue (list): List to store received offers.
+        offer_queue (queue.Queue): Queue to store received offers.
     """
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            # Enable multiple clients to bind to the same port
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        except AttributeError:
+            # Some systems might not support SO_REUSEPORT
+            logger.warning("SO_REUSEPORT not supported on this system.")
         s.bind(('', OFFER_PORT))
         s.settimeout(1)  # Set timeout to allow periodic checks for stop_event
         print(Fore.GREEN + "Client started, listening for offer requests..." + Style.RESET_ALL)
@@ -51,12 +58,11 @@ def listen_for_offers(stop_event, offer_queue):
             try:
                 data, addr = s.recvfrom(BUFFER_SIZE)
                 offer = parse_offer_message(data)
-                with transfer_lock:
-                    if offer and not is_transfer_active:
-                        udp_port, tcp_port = offer
-                        server_ip = addr[0]
-                        offer_queue.append((server_ip, udp_port, tcp_port))
-                        print(Fore.CYAN + f"Received offer from {server_ip}" + Style.RESET_ALL)
+                if offer and not is_transfer_active:
+                    udp_port, tcp_port = offer
+                    server_ip = addr[0]
+                    offer_queue.put((server_ip, udp_port, tcp_port))
+                    print(Fore.CYAN + f"Received offer from {server_ip}" + Style.RESET_ALL)
             except socket.timeout:
                 continue
             except Exception as e:
@@ -225,7 +231,7 @@ def main():
     The main function to start the client application.
     """
     stop_event = threading.Event()
-    offer_queue = []
+    offer_queue = queue.Queue()
 
     # Start listening for offers in a separate thread
     listener_thread = threading.Thread(target=listen_for_offers, args=(stop_event, offer_queue), daemon=True)
@@ -233,25 +239,26 @@ def main():
 
     try:
         while True:
-            # Wait until at least one offer is received
-            while not offer_queue:
-                time.sleep(0.1)
-            # Get the first offer
-            server_ip, udp_port, tcp_port = offer_queue.pop(0)
-            # Set transfer as active before prompting the user
-            with transfer_lock:
-                global is_transfer_active
-                is_transfer_active = True
-            # Prompt user for parameters
-            file_size, tcp_connections, udp_connections = get_user_parameters()
-            # Start speed test
-            perform_speed_test(server_ip, udp_port, tcp_port, file_size, tcp_connections, udp_connections)
-            # Reset the flag after transfer is complete
-            with transfer_lock:
-                is_transfer_active = False
+            try:
+                # Wait indefinitely until an offer is received
+                server_ip, udp_port, tcp_port = offer_queue.get(timeout=1)
+                # Set transfer as active before prompting the user
+                with transfer_lock:
+                    global is_transfer_active
+                    is_transfer_active = True
+                # Prompt user for parameters
+                file_size, tcp_connections, udp_connections = get_user_parameters()
+                # Start speed test
+                perform_speed_test(server_ip, udp_port, tcp_port, file_size, tcp_connections, udp_connections)
+                # Reset the flag after transfer is complete
+                with transfer_lock:
+                    is_transfer_active = False
+            except queue.Empty:
+                continue
     except KeyboardInterrupt:
         print(Fore.RED + "\nClient shutting down." + Style.RESET_ALL)
         stop_event.set()
+        listener_thread.join()
         sys.exit()
 
 
