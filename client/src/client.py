@@ -27,6 +27,10 @@ from colorama import Fore, Style
 OFFER_PORT = 13117  # UDP port to listen for offer messages
 BUFFER_SIZE = 65507  # Maximum UDP datagram size
 
+# Maximum limits to prevent resource exhaustion
+MAX_FILE_SIZE = 10 * 1024 * 1024 * 1024  # 10 GB
+MAX_CONNECTIONS = 100
+
 # Initialize Logger
 logger = setup_logger('client', 'client.log')
 
@@ -84,19 +88,35 @@ def get_user_parameters():
             if file_size <= 0:
                 print(Fore.RED + "File size must be a positive integer." + Style.RESET_ALL)
                 continue
+            if file_size > MAX_FILE_SIZE:
+                print(
+                    Fore.RED + f"File size too large. Please enter a value less than {MAX_FILE_SIZE} bytes." + Style.RESET_ALL)
+                continue
+
             tcp_connections_str = input("Enter the number of TCP connections: ")
             tcp_connections = int(tcp_connections_str)
             if tcp_connections < 0:
-                print(Fore.RED + "Number of TCP connections must be a positive integer." + Style.RESET_ALL)
+                print(Fore.RED + "Number of TCP connections must be a non-negative integer." + Style.RESET_ALL)
                 continue
+            if tcp_connections > MAX_CONNECTIONS:
+                print(
+                    Fore.RED + f"Number of TCP connections too high. Please enter a value less than or equal to {MAX_CONNECTIONS}." + Style.RESET_ALL)
+                continue
+
             udp_connections_str = input("Enter the number of UDP connections: ")
             udp_connections = int(udp_connections_str)
             if udp_connections < 0:
-                print(Fore.RED + "Number of UDP connections must be a positive integer." + Style.RESET_ALL)
+                print(Fore.RED + "Number of UDP connections must be a non-negative integer." + Style.RESET_ALL)
                 continue
+            if udp_connections > MAX_CONNECTIONS:
+                print(
+                    Fore.RED + f"Number of UDP connections too high. Please enter a value less than or equal to {MAX_CONNECTIONS}." + Style.RESET_ALL)
+                continue
+
             if udp_connections == 0 and tcp_connections == 0:
                 print(Fore.RED + "At least one TCP or UDP connection is required." + Style.RESET_ALL)
                 continue
+
             return file_size, tcp_connections, udp_connections
         except ValueError:
             print(Fore.RED + "Invalid input. Please enter integer values." + Style.RESET_ALL)
@@ -195,9 +215,6 @@ def perform_speed_test(server_ip, udp_port, tcp_port, file_size, tcp_connections
         tcp_connections (int): Number of TCP connections to use.
         udp_connections (int): Number of UDP connections to use.
     """
-    global is_transfer_active
-    # The flag is already set in main() before calling this function
-
     threads = []
     results = []
     transfer_id = 1
