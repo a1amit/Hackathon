@@ -153,5 +153,3 @@ Example `config.json` snippet:
 - **Data Integrity**: Currently, the payloads are just dummy `b'a'` bytes. We assume no corruption, but real-world use might require checksums or more robust error handling.
 - **High Bandwidth**: If you remove artificial sleeps or increase segment sizes, you might overwhelm a slower or congested network, leading to packet loss.
 - **Graceful Shutdown**: The server and client rely on `KeyboardInterrupt` (Ctrl+C). A more formal shutdown approach or signal handling could be implemented.
-
----
