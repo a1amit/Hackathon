@@ -177,7 +177,7 @@ def udp_transfer(server_ip, udp_port, file_size, transfer_id, results):
     """
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            s.settimeout(2)  # Timeout to detect end of transfer
+            s.settimeout(1)  # Timeout to detect end of transfer
             # Send request message
             request = create_request_message(file_size)
             s.sendto(request, (server_ip, udp_port))
