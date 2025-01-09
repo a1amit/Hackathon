@@ -20,16 +20,19 @@ from shared.protocol import (
     PAYLOAD_TYPE,
     REQUEST_TYPE,
 )
-from shared.utils import get_local_ip, setup_logger
+from shared.utils import get_local_ip, setup_logger, load_config
 from colorama import Fore, Style
 from concurrent.futures import ThreadPoolExecutor
 
+CONFIG = load_config()
+SERVER_CONFIG = CONFIG["server"]
+
 # Constants
-OFFER_INTERVAL = 1  # seconds between offer broadcasts
-OFFER_PORT = 13117  # UDP port for offer messages
-SEGMENT_SIZE = 64000  # segment size for UDP payload messages
-BUFFER_SIZE = 4096  # Buffer size for receiving data
-NETWORK_DELAY = 0.001  # Delay between sending UDP segments
+OFFER_INTERVAL = SERVER_CONFIG["OFFER_INTERVAL"]  # seconds between offer broadcasts
+OFFER_PORT = SERVER_CONFIG["OFFER_PORT"]  # UDP port for offer messages
+SEGMENT_SIZE = SERVER_CONFIG["SEGMENT_SIZE"]  # segment size for UDP payload messages
+BUFFER_SIZE = SERVER_CONFIG["BUFFER_SIZE"]  # Buffer size for receiving data
+NETWORK_DELAY = SERVER_CONFIG["NETWORK_DELAY"]  # Delay between sending UDP segments
 
 # Initialize Logger
 logger = setup_logger('server', 'server.log')

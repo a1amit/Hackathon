@@ -1,5 +1,7 @@
 # shared/utils.py
 
+import os
+import json
 import socket
 import logging
 from logging.handlers import RotatingFileHandler
@@ -20,6 +22,17 @@ def get_local_ip():
         except Exception:
             IP = '127.0.0.1'
     return IP
+
+
+def load_config():
+    """
+    Loads configuration from a JSON file.
+    Returns a dict containing 'client' and 'server' sections.
+    """
+    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+    return config
 
 
 def setup_logger(name, log_file, level=logging.INFO, max_bytes=10 * 1024 * 1024, backup_count=5):

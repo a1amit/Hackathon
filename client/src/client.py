@@ -20,17 +20,20 @@ from shared.protocol import (
     REQUEST_TYPE,
     PAYLOAD_TYPE,
 )
-from shared.utils import setup_logger
+from shared.utils import setup_logger, load_config
 from colorama import Fore, Style
 
+CONFIG = load_config()  # Load entire JSON
+CLIENT_CONFIG = CONFIG["client"]  # Extract just client portion
+
 # Constants
-OFFER_PORT = 13117  # UDP port to listen for offer messages
-BUFFER_SIZE = 65507  # Maximum UDP datagram size
-UDP_RECEIVE_TIMEOUT = 1  # or 2, or allow user to supply
+OFFER_PORT = CLIENT_CONFIG["OFFER_PORT"] # UDP port to listen for offer messages
+BUFFER_SIZE = CLIENT_CONFIG["BUFFER_SIZE"]  # Maximum UDP datagram size
+UDP_RECEIVE_TIMEOUT = CLIENT_CONFIG["UDP_RECEIVE_TIMEOUT"]  # or 2, or allow user to supply
 
 # Maximum limits to prevent resource exhaustion
-MAX_FILE_SIZE = 10 * 1024 * 1024 * 1024  # 10 GB
-MAX_CONNECTIONS = 100
+MAX_FILE_SIZE = CLIENT_CONFIG["MAX_FILE_SIZE"] # Maximum file size in bytes
+MAX_CONNECTIONS = CLIENT_CONFIG["MAX_CONNECTIONS"] # Maximum number of connections
 
 # Initialize Logger
 logger = setup_logger('client', 'client.log')
