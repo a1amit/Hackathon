@@ -155,14 +155,3 @@ Example `config.json` snippet:
 - **Graceful Shutdown**: The server and client rely on `KeyboardInterrupt` (Ctrl+C). A more formal shutdown approach or signal handling could be implemented.
 
 ---
-
-## License
-
-*(Optional)* Include a license if you’re open-sourcing your project, for example:  
-
-> This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-### Enjoy using and experimenting with the Network Speed Test!  
-If you have any questions or issues, please open an issue on the repo or reach out to the contributors.
