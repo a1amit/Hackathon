@@ -26,6 +26,7 @@ from colorama import Fore, Style
 # Constants
 OFFER_PORT = 13117  # UDP port to listen for offer messages
 BUFFER_SIZE = 65507  # Maximum UDP datagram size
+UDP_RECEIVE_TIMEOUT = 1  # or 2, or allow user to supply
 
 # Maximum limits to prevent resource exhaustion
 MAX_FILE_SIZE = 10 * 1024 * 1024 * 1024  # 10 GB
@@ -56,7 +57,7 @@ def listen_for_offers(stop_event, offer_queue):
             # Some systems might not support SO_REUSEPORT
             logger.warning("SO_REUSEPORT not supported on this system.")
         s.bind(('', OFFER_PORT))
-        s.settimeout(1)  # Set timeout to allow periodic checks for stop_event
+        s.settimeout(UDP_RECEIVE_TIMEOUT)  # Set timeout to allow periodic checks for stop_event
         print(Fore.GREEN + "Client started, listening for offer requests..." + Style.RESET_ALL)
         while not stop_event.is_set():
             try:

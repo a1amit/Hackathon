@@ -36,7 +36,7 @@ def setup_logger(name, log_file, level=logging.INFO, max_bytes=10 * 1024 * 1024,
     Returns:
         logging.Logger: Configured logger.
     """
-    formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
+    formatter = logging.Formatter('%(asctime)s [%(name)s] [%(levelname)s] %(message)s')
 
     handler = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
     handler.setFormatter(formatter)

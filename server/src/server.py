@@ -27,8 +27,9 @@ from concurrent.futures import ThreadPoolExecutor
 # Constants
 OFFER_INTERVAL = 1  # seconds between offer broadcasts
 OFFER_PORT = 13117  # UDP port for offer messages
-SEGMENT_SIZE = 4000  # Reduced segment size to 4,000 bytes
+SEGMENT_SIZE = 64000  # segment size for UDP payload messages
 BUFFER_SIZE = 4096  # Buffer size for receiving data
+NETWORK_DELAY = 0.001  # Delay between sending UDP segments
 
 # Initialize Logger
 logger = setup_logger('server', 'server.log')
@@ -99,7 +100,7 @@ def handle_udp_request(data, addr, udp_socket):
             payload = create_payload_message(total_segments, segment, dummy_payload)
             udp_socket.sendto(payload, addr)
             logger.debug(f"[UDP] Sent segment {segment}/{total_segments} to {addr}.")
-            time.sleep(0.001)  # Slight delay to prevent network congestion
+            time.sleep(NETWORK_DELAY)  # Slight delay to prevent network congestion
 
         logger.info(f"[UDP] Sent {total_segments} segments to {addr}.")
     except Exception as e:
