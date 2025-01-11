@@ -31,8 +31,9 @@ SERVER_CONFIG = CONFIG["server"]
 OFFER_INTERVAL = SERVER_CONFIG["OFFER_INTERVAL"]  # seconds between offer broadcasts
 OFFER_PORT = SERVER_CONFIG["OFFER_PORT"]  # UDP port for offer messages
 SEGMENT_SIZE = SERVER_CONFIG["SEGMENT_SIZE"]  # segment size for UDP payload messages
-BUFFER_SIZE = SERVER_CONFIG["BUFFER_SIZE"]  # Buffer size for receiving data
-NETWORK_DELAY = SERVER_CONFIG["NETWORK_DELAY"]  # Delay between sending UDP segments
+BUFFER_SIZE = SERVER_CONFIG["BUFFER_SIZE"]  # buffer size for receiving data
+NETWORK_DELAY = SERVER_CONFIG["NETWORK_DELAY"]  # delay between sending UDP segments
+TCP_CHUNK_SIZE = SERVER_CONFIG["TCP_CHUNK_SIZE"]  # TCP chunk size
 
 # Initialize Logger
 logger = setup_logger('server', 'server.log')
@@ -41,23 +42,17 @@ logger = setup_logger('server', 'server.log')
 def handle_tcp_client(conn, addr, file_size):
     """
     Handles a TCP client by sending the requested amount of data and closing the connection.
-
-    Args:
-        conn (socket.socket): The TCP connection socket.
-        addr (tuple): The client's address.
-        file_size (int): The number of bytes to send.
     """
     try:
         logger.info(f"[TCP] Handling client {addr} for {file_size} bytes.")
         bytes_sent = 0
-        buffer_size = 4096  # 4KB per send
-        dummy_data = b'a' * buffer_size  # Dummy data to send
+        dummy_data = b'a' * TCP_CHUNK_SIZE  # Use the new TCP chunk size from config
 
         start_time = time.time()
 
         while bytes_sent < file_size:
             remaining = file_size - bytes_sent
-            chunk_size = buffer_size if remaining >= buffer_size else remaining
+            chunk_size = TCP_CHUNK_SIZE if remaining >= TCP_CHUNK_SIZE else remaining
             conn.sendall(dummy_data[:chunk_size])
             bytes_sent += chunk_size
 
@@ -65,7 +60,9 @@ def handle_tcp_client(conn, addr, file_size):
         total_time = end_time - start_time
         speed = (bytes_sent * 8) / total_time  # bits per second
 
-        logger.info(f"[TCP] Sent {bytes_sent} bytes to {addr} in {total_time:.2f} seconds at {speed:.2f} bps.")
+        logger.info(
+            f"[TCP] Sent {bytes_sent} bytes to {addr} in {total_time:.2f} seconds at {speed:.2f} bps."
+        )
     except Exception as e:
         logger.error(f"[TCP] Error with client {addr}: {e}")
     finally:
@@ -111,7 +108,7 @@ def handle_udp_request(data, addr, udp_socket):
 
 
 # Define maximum number of worker threads
-MAX_WORKERS = 50
+MAX_WORKERS = SERVER_CONFIG["MAX_WORKERS"]
 
 
 def tcp_server(tcp_port):
