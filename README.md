@@ -58,7 +58,7 @@ Hackathon
 
 1. **Clone the repository** (or download/unzip):
     ```bash
-    git clone <your-repo-url>.git
+    git clone https://github.com/a1amit/Hackathon.git
     cd Hackathon
     ```
 
