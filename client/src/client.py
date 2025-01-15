@@ -145,24 +145,64 @@ def tcp_transfer(server_ip, tcp_port, file_size, transfer_id, results):
             logger.info(f"Initiating TCP transfer #{transfer_id} to {server_ip}:{tcp_port} for {file_size} bytes.")
             start_time = time.time()
             s.connect((server_ip, tcp_port))
+
             # Send the file size followed by a newline
             s.sendall(f"{file_size}\n".encode())
-            # Receive the data
+
+            # Metrics Initialization
             bytes_received = 0
+            throughput_log = []  # Logs throughput over time
+            packet_times = []  # Logs time per packet
+            last_time = start_time
+
+            # Receive the data
             while bytes_received < file_size:
                 data = s.recv(BUFFER_SIZE)
                 if not data:
                     logger.warning(f"TCP transfer #{transfer_id}: Connection closed prematurely.")
                     break
+
+                # Metrics per packet
                 bytes_received += len(data)
+                current_time = time.time()
+                packet_time = current_time - last_time
+                packet_times.append(packet_time)
+                throughput = (len(data) * 8) / packet_time if packet_time > 0 else 0
+                throughput_log.append(throughput)
+                last_time = current_time
+
+                # Calculate ETA
+                remaining_bytes = file_size - bytes_received
+                avg_speed = bytes_received / (current_time - start_time)
+                eta = remaining_bytes / avg_speed if avg_speed > 0 else float('inf')
+
+                # Log progress
+                logger.info(
+                    f"TCP transfer #{transfer_id}: {bytes_received}/{file_size} bytes received, "
+                    f"ETA: {eta:.2f} seconds."
+                )
+
             end_time = time.time()
             total_time = end_time - start_time
-            speed = (bytes_received * 8) / total_time if total_time > 0 else 0  # bits per second
+            avg_throughput = (bytes_received * 8) / total_time if total_time > 0 else 0  # bits per second
+
+            # Calculate average packet size and jitter
+            avg_packet_time = sum(packet_times) / len(packet_times) if packet_times else 0
+            jitter = max(packet_times) - min(packet_times) if packet_times else 0
+
+            # Results Summary
             logger.info(
-                f"TCP transfer #{transfer_id} completed: {bytes_received} bytes in {total_time:.2f} seconds at {speed:.2f} bps.")
-            results.append(
-                f"{Fore.GREEN}TCP transfer #{transfer_id} finished, total time: {total_time:.2f} seconds, total speed: {speed:.2f} bits/second{Style.RESET_ALL}"
+                f"TCP transfer #{transfer_id} completed: {bytes_received} bytes in {total_time:.2f} seconds "
+                f"at {avg_throughput:.2f} bps."
             )
+            results.append(
+                f"{Fore.GREEN}TCP transfer #{transfer_id} finished, total time: {total_time:.2f} seconds, "
+                f"average speed: {avg_throughput:.2f} bits/second, "
+                f"average packet time: {avg_packet_time:.4f} seconds, jitter: {jitter:.4f} seconds{Style.RESET_ALL}"
+            )
+
+            # Throughput over time
+            logger.info(f"Throughput log (bps): {throughput_log}")
     except Exception as e:
         logger.error(f"TCP transfer #{transfer_id} failed: {e}")
         results.append(f"{Fore.RED}TCP transfer #{transfer_id} failed: {e}{Style.RESET_ALL}")
@@ -179,55 +219,94 @@ def udp_transfer(server_ip, udp_port, file_size, transfer_id, results):
         transfer_id (int): Identifier for the transfer.
         results (list): List to store result strings.
     """
+
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.settimeout(1)  # Timeout to detect end of transfer
+
             # Send request message
             request = create_request_message(file_size)
             s.sendto(request, (server_ip, udp_port))
             logger.info(f"Initiating UDP transfer #{transfer_id} to {server_ip}:{udp_port} for {file_size} bytes.")
+
+            # Metrics initialization
             start_time = time.time()
             bytes_received = 0
             segments_received = set()
             total_segments = None
+            packet_times = []  # Logs time for receiving each packet
+            throughput_log = []  # Logs throughput per packet
+            last_time = start_time
+
             while True:
                 try:
+                    # Receive data
                     data, addr = s.recvfrom(BUFFER_SIZE)
+                    current_time = time.time()
+
+                    # Parse payload
                     parsed = parse_payload_message(data)
                     if not parsed:
                         logger.warning(f"UDP transfer #{transfer_id}: Received malformed payload from {addr}.")
                         continue
+
                     seg_total, seg_current, payload = parsed
+
+                    # Track total segments to receive
                     if total_segments is None:
                         total_segments = seg_total
                         logger.info(f"UDP transfer #{transfer_id}: Total segments to receive: {total_segments}.")
-                    # Add only unique segments
+
+                    # Process packet if not already received
                     if seg_current not in segments_received:
                         segments_received.add(seg_current)
                         bytes_received += len(payload)
+
+                        # Metrics calculations
+                        packet_time = current_time - last_time
+                        throughput = (len(payload) * 8) / packet_time if packet_time > 0 else 0
+                        packet_times.append(packet_time)
+                        throughput_log.append(throughput)
+                        last_time = current_time
+
                         logger.debug(f"UDP transfer #{transfer_id}: Received segment {seg_current}/{seg_total}.")
-                    # Optional: Stop if all segments are received
+
+                    # Stop if all segments are received
                     if total_segments and len(segments_received) >= total_segments:
                         logger.info(f"UDP transfer #{transfer_id}: All segments received.")
                         break
                 except socket.timeout:
                     logger.info(f"UDP transfer #{transfer_id}: Transfer timed out.")
                     break
+
+            # Final calculations
             end_time = time.time()
             total_time = end_time - start_time
-            speed = (bytes_received * 8) / total_time if total_time > 0 else 0
+            avg_throughput = (bytes_received * 8) / total_time if total_time > 0 else 0  # bits per second
+
+            # Packet loss calculation
             if total_segments:
                 packets_lost = total_segments - len(segments_received)
                 loss_percentage = (packets_lost / total_segments) * 100
             else:
                 loss_percentage = 100.0
+
+            # Jitter calculation
+            avg_packet_time = sum(packet_times) / len(packet_times) if packet_times else 0
+            jitter = max(packet_times) - min(packet_times) if packet_times else 0
+
+            # Log results
             logger.info(
-                f"UDP transfer #{transfer_id} completed: {bytes_received} bytes in {total_time:.2f} seconds at {speed:.2f} bps with {100 - loss_percentage:.2f}% packets received.")
+                f"UDP transfer #{transfer_id} completed: {bytes_received} bytes in {total_time:.2f} seconds "
+                f"at {avg_throughput:.2f} bps with {100 - loss_percentage:.2f}% packets received. "
+                f"Average packet time: {avg_packet_time:.4f} seconds, jitter: {jitter:.4f} seconds."
+            )
             results.append(
                 f"{Fore.YELLOW}UDP transfer #{transfer_id} finished, "
                 f"total time: {total_time:.2f} seconds, "
-                f"total speed: {speed:.2f} bits/second, "
-                f"percentage of packets received successfully: {100 - loss_percentage:.2f}%{Style.RESET_ALL}"
+                f"total speed: {avg_throughput:.2f} bits/second, "
+                f"percentage of packets received successfully: {100 - loss_percentage:.2f}%, "
+                f"average packet time: {avg_packet_time:.4f} seconds, jitter: {jitter:.4f} seconds{Style.RESET_ALL}"
             )
     except Exception as e:
         logger.error(f"UDP transfer #{transfer_id} failed: {e}")
@@ -272,6 +351,8 @@ def perform_speed_test(server_ip, udp_port, tcp_port, file_size, tcp_connections
     for res in results:
         print(res)
     print(Fore.GREEN + "All transfers complete, listening to offer requests" + Style.RESET_ALL)
+
+
 
 
 def main():

@@ -10,9 +10,10 @@ A hackathon project implementing a network speed test over both **TCP** and **UD
     - [Server](#server)
     - [Client](#client)
 5. [Configuration](#configuration)
-6. [How It Works](#how-it-works)
-7. [Known Issues / Future Improvements](#known-issues--future-improvements)
-8. [License](#license)
+6. [Statistics](#statistics)
+7. [How It Works](#how-it-works)
+8. [Known Issues / Future Improvements](#known-issues--future-improvements)
+9. [License](#license)
 
 ---
 
@@ -127,6 +128,26 @@ Example `config.json` snippet:
   }
 }
 ```
+
+---
+
+## Statistics
+
+The application calculates various statistics during the file transfer process for both **TCP** and **UDP** transfers:
+
+- **TCP Statistics**:
+  - **Total transfer time**: Time taken to transfer the entire file.
+  - **Transfer speed**: Bits per second (bps) calculated as `bytes_received * 8 / total_time`.
+  - **Throughput efficiency**: The ratio of bytes received to the file size requested.
+
+- **UDP Statistics**:
+  - **Total transfer time**: Time taken to transfer the requested data.
+  - **Transfer speed**: Bits per second (bps) calculated as `bytes_received * 8 / total_time`.
+  - **Packet loss percentage**: Percentage of packets lost during the transfer.
+  - **Throughput efficiency**: The ratio of bytes received to the file size requested.
+  - **Unique packets received**: Total number of unique packets successfully received.
+
+The results for each transfer are logged to the console and appended to a `results` list for further processing or display.
 
 ---
 
