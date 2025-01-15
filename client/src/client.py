@@ -173,7 +173,7 @@ def tcp_transfer(server_ip, tcp_port, file_size, transfer_id, results):
 
                 # Calculate ETA
                 remaining_bytes = file_size - bytes_received
-                avg_speed = bytes_received / (current_time - start_time)
+                avg_speed = bytes_received / (current_time - start_time) if (current_time - start_time) != 0 else 0
                 eta = remaining_bytes / avg_speed if avg_speed > 0 else float('inf')
 
                 # Log progress
