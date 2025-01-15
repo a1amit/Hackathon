@@ -197,8 +197,8 @@ def tcp_transfer(server_ip, tcp_port, file_size, transfer_id, results):
             )
             results.append(
                 f"{Fore.GREEN}TCP transfer #{transfer_id} finished, total time: {total_time:.2f} seconds, "
-                f"average speed: {avg_throughput:.2f} bits/second, "
-                f"average packet time: {avg_packet_time:.4f} seconds, jitter: {jitter:.4f} seconds{Style.RESET_ALL}"
+                f"average speed: {avg_throughput:.2f} bits/second,\nadditional info:\n[\n"
+                f"\t-average packet time: {avg_packet_time:.4f} seconds,\n \t-jitter: {jitter:.4f} seconds{Style.RESET_ALL} \n]"
             )
 
             # Throughput over time
@@ -306,7 +306,7 @@ def udp_transfer(server_ip, udp_port, file_size, transfer_id, results):
                 f"total time: {total_time:.2f} seconds, "
                 f"total speed: {avg_throughput:.2f} bits/second, "
                 f"percentage of packets received successfully: {100 - loss_percentage:.2f}%, "
-                f"average packet time: {avg_packet_time:.4f} seconds, jitter: {jitter:.4f} seconds{Style.RESET_ALL}"
+                f"additional info:\n[\n\t-average packet time: {avg_packet_time:.4f} seconds,\n\t-jitter: {jitter:.4f} seconds{Style.RESET_ALL}\n]"
             )
     except Exception as e:
         logger.error(f"UDP transfer #{transfer_id} failed: {e}")
